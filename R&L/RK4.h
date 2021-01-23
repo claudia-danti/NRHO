@@ -79,7 +79,7 @@ vector2D<double> RK4(double t0, double tfin, double h, function & f, vector<doub
 
 //OVERLOAD with control
 //the object function is a vectorial function that must have the evaluate method (evaluating the function in a certain point x)
-template <typename function, typename control>																			//parameters: initial time t0, final time tfin
+template <typename function, typename control>											//parameters: initial time t0, final time tfin
 vector2D<double> RK4(double t0, control &c, double h, function & f, vector<double> y0){	//initial condition vector y0, function f, step h
 
 	//definition of the 4 increasing vectors k

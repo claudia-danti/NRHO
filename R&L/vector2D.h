@@ -194,6 +194,91 @@ private:
 	}
 };
 
+template<typename T>
+vector2D<T> operator+(const vector2D<T> & a , const vector2D<T> & b){
+
+
+	if(a.col() == b.col() && a.row() == b.row()){
+
+		vector<T> a_lin = a.getLinearVector();
+		vector<T> b_lin = b.getLinearVector();
+		vector<T> sum; 
+
+		for(int i = 0; i < a_lin.size(); i++){
+			sum[i] = a_lin [i] + b_lin[i];
+		}
+		vector2D<T> sum_mat (a.col(), sum);
+
+		return sum_mat;
+	}
+
+	else{
+		cerr<<"You cannot sum two matrices that have different dimensions."<<endl;
+		return vector2D<T> ();
+	}
+
+}
+
+
+template<typename T>
+vector2D<T> operator-(const vector2D<T> & a , const vector2D<T> & b){
+
+
+	if(a.col() == b.col() && a.row() == b.row()){
+
+		vector<T> a_lin = a.getLinearVector();
+		vector<T> b_lin = b.getLinearVector();
+		vector<T> diff;
+
+		for(int i = 0; i < a_lin.size(); i++){
+			diff[i] = a_lin [i] - b_lin[i];
+		}
+
+		vector2D<T> diff_mat (a.col(), diff);
+
+		return diff_mat;
+	}
+
+	else{
+		cerr<<"You cannot subract two matrices that have different dimensions."<<endl;
+
+		return vector2D<T> ();
+	}
+
+}
+
+template<typename T>
+vector2D<T> operator/(const vector2D<T> & a , T b){
+
+	 vector<T> a_lin = a.getLinearVector();
+	 vector<T> a_lin_b(a_lin.size());
+
+	 for(int i = 0; i < a_lin.size(); i++){
+	 	a_lin_b[i] = a_lin[i]/b;
+	 }
+
+	 vector2D<T> c (a.col(), a_lin_b);
+
+	 return c;
+
+}
+
+template<typename T>
+vector<T> operator*(const vector2D<T> & a, T b){
+
+	vector<T> a_lin = a.getLinearVector();
+	vector<T> a_lin_b(a_lin.size());
+
+	for(int i = 0; i < a_lin.size(); i++){
+	 	a_lin_b[i] = a_lin[i]*b;
+	}
+
+	vector2D<T> c (a.col(), a_lin_b);
+
+	return c;
+}
+
+
 
 template<typename T>
 vector<T> operator*(const vector2D<T> & m, const vector<T> & v){
@@ -245,6 +330,28 @@ ostream & operator<<(ostream & os, const vector2D<T> & v2d){
 	}
 	return os;
 }
+
+
+//prodotto colonna per riga
+template<typename pointType>
+vector2D<double> outerproduct (pointType a, pointType b){
+	
+	int dim_a = a.size();
+
+	vector2D<double> c (a.size(), b.size());
+
+	for(int i = 0; i < dim_a; i++){
+		c.setRow(i, b*a[i]);
+	}
+
+	return c;
+
+}
+
+
+
+
+
 
 
 #endif

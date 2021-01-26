@@ -95,7 +95,7 @@ if(dimension==3){
 
 }
 
-	return (1-m_mu)/r1 +(m_mu)/r2 + (1./2)*(pow(x[1],2)+pow(x[2],2));
+	return (1-m_mu)/r1 +(m_mu)/r2 + (1./2)*(pow(x[0],2)+pow(x[1],2));
 }
 
 //evaluation of the Jacobi constant

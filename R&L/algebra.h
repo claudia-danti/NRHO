@@ -6,6 +6,7 @@
 #include <numeric>
 #include <algorithm>
 
+
 using namespace std;
 
 
@@ -61,8 +62,8 @@ pointType operator*(pointType a, double b){
 	}
 	return a;
 }
-template<typename pointType>
-pointType operator*(double b, pointType a){
+//template<typename pointType>
+vector<double> operator*(double b, vector<double> a){
 	return a * b;
 }
 

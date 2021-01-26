@@ -88,7 +88,7 @@ vector<double> Stm::evaluate(double t, const vector<double> & x){
 return derivative;
 
 }
-
+/*
 //evaluation of the Jacobi constant
 double Stm::jacobi(const vector<double> &x){
 
@@ -130,7 +130,7 @@ if(x.size() == 43){
 	return (1-m_mu)/r1 +(m_mu)/r2 + (1./2)*(pow(x[0],2)+pow(x[1],2));
 }
 
-
+*/
 vector2D<double> jacobian2DHalo (vector2D<double> &phi, double vy, vector<double> xT){
 //we write the jacobian using the stm: jacobian = phi (ereased) - 1/vy*(xT*vy)
 	//store the vector of the y direction

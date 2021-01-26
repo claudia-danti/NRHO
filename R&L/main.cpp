@@ -141,7 +141,7 @@ for(auto x0 : xin){
 	//creating a matrix
 	vector2D<double> initial;
 
-	C0=Phi.jacobi(x0);
+	C0=tb.jacobi(x0);
 	//open the output file and start the interation with the adaptive step
 	output.open("corrections/initial"+to_string(i)+".dat");
 	observer obs(output, initial);	//the results are written directly in the file
@@ -199,7 +199,7 @@ for(auto x0 : xin){
 		//store the value of the phi matrix at one period
 		vector2D<double> phiT(4, vector<double>(xTphiT.begin()+5, xTphiT.end()));
 		double vT = xT[3];	//velocity in y after one period
-		CT = Phi.jacobi(xT);
+		CT = tb.jacobi(xT);
 
 		flag = v_old*xT[2]>=0;
 		v_old = xT[2];

@@ -1,7 +1,7 @@
 #ifndef _pca_h_
 #define _pca_h_
 
-
+#include <iostream>
 #include <armadillo>
 #include<cmath>
 
@@ -19,7 +19,7 @@ using namespace arma;
 
 //N:B.: this function is to be used with the pseudoinverse of the Jacobian
 
-mat pca_inv(mat X, double treshold){
+mat pca_inv(mat & X, double treshold){
 	//store the number of rows and cols of the matrix X
 	double rows = X.n_rows;
 	double cols = X.n_cols;
@@ -46,14 +46,14 @@ mat pca_inv(mat X, double treshold){
 	//overconstrained problem
 	if(rows > cols){
 			S = diagmat(s);
-			S.insert_rows( rows, 1 );	//inserts at the end (number of row = rows = end of the matrix) one row of 0
+			S.insert_rows( rows-1, 1 );	//inserts at the end (number of row = rows = end of the matrix) one row of 0
 	}
 
 	//underconstrained problem
 
 	else if(rows < cols){
 		S = diagmat(s);
-		S.insert_cols( cols, 1);	//adds a column of 0 at the lest column
+		S.insert_cols( cols-1, 1);	//adds a column of 0 at the lest column
 	}
 
 
@@ -76,7 +76,7 @@ mat pca_inv(mat X, double treshold){
 */
 
 
-mat pca(mat X, double treshold){
+mat pca(mat & X, double treshold){
 	//store the number of rows and cols of the matrix X
 	double rows = X.n_rows;
 	double cols = X.n_cols;
@@ -87,6 +87,8 @@ mat pca(mat X, double treshold){
 	//applying armadillo's svd
 	svd(U,d,V,X);
 
+
+
 	//sets to 0 the eigenvalues below the treshold
 	for(int i = 0; i < d.n_elem; i++){
 		if (d(i) < treshold){
@@ -96,26 +98,27 @@ mat pca(mat X, double treshold){
 		else{
 			d(i) = 1/d(i);
 		}
-
 	}
 
 	mat Vt = trans(V);
+
 	//create a diagonal matrix with the eigenvalues 1/d
 	mat D;
+
 	//separate the underconstrained and overconstrained cases
 	//overconstrained problem
 	if(rows > cols){
 			D = diagmat(d);
-			D.insert_rows( rows, 1 );	//inserts at the end (number of row = rows = end of the matrix) one row of 0
+			D.insert_rows( rows-1, 1 );	//inserts at the end (number of row = rows = end of the matrix) one row of 0
+
 	}
 
 	//underconstrained problem
 
 	else if(rows < cols){
 		D = diagmat(d);
-		D.insert_cols( cols, 1);	//adds a column of 0 at the lest column
+		D.insert_cols( cols-1, 1);	//adds a column of 0 at the lest column
 	}
-
 
 	return U*D*Vt;
 

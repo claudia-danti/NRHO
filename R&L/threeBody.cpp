@@ -19,9 +19,6 @@ vector<double> ThreeBody::evaluate(double t, const vector<double> & x){
 		derivative[i+a] = acc[i];	//inserts accelerations in the last half of the vector
 	}
 
-	//add the jacobi constant to the state vector
-	derivative.push_back(potential(x));
-
 	return derivative;
 }
 
@@ -47,7 +44,7 @@ vector<double> ThreeBody::acceleration(const vector<double> & x){
 vector<double> acc(x.size()/2);
 double r1, r2;
 
-	if (x.size()/2 == 2){
+	if (x.size() == 4){
 
 	//position of the two primaries in the synodic frame
 	r1 = sqrt(pow(x[0]-x1,2)+pow(x[1],2));
@@ -57,7 +54,7 @@ double r1, r2;
 	acc[1] = x[1] - (1-m_mu)*x[1]/pow(r1,3) - m_mu*x[1]/pow(r2,3) - 2*x[2];
 }
 
-if (x.size()/2 ==3){
+if (x.size() == 6){
 
 	//position of the two primaries in the synodic frame
 	r1 = sqrt(pow(x[0]-x1,2)+pow(x[1],2)+pow(x[2],2));
@@ -77,18 +74,17 @@ if (x.size()/2 ==3){
 //evaluation of the potential of the problem
 double ThreeBody::potential (const vector<double> &x){
 //we differentiate the 2D from the 3D case
-int dimension = x.size()/2;
 double r1, r2;
 
-if(dimension==2){
+if(x.size() == 4){
 
 
-	r1 = sqrt(pow(x[1]-x1,2)+pow(x[2],2));
-	r2 = sqrt(pow(x[1]-x2,2)+pow(x[2],2));
+	r1 = sqrt(pow(x[0]-x1,2)+pow(x[1],2));
+	r2 = sqrt(pow(x[0]-x2,2)+pow(x[1],2));
 
 }
 
-if(dimension==3){
+if(x.size() == 6){
 
 	r1 = sqrt(pow(x[0]-x1,2)+pow(x[1],2)+pow(x[2],2));
 	r2 = sqrt(pow(x[0]-x2,2)+pow(x[1],2)+pow(x[2],2));

@@ -8,6 +8,7 @@
 #include <cassert>
 #include <utility>
 #include <numeric>
+#include "algebra.h"
 using namespace std;
 
 template<typename T = double>
@@ -202,14 +203,8 @@ vector2D<T> operator+(const vector2D<T> & a , const vector2D<T> & b){
 
 		vector<T> a_lin = a.getLinearVector();
 		vector<T> b_lin = b.getLinearVector();
-		vector<T> sum; 
 
-		for(int i = 0; i < a_lin.size(); i++){
-			sum[i] = a_lin [i] + b_lin[i];
-		}
-		vector2D<T> sum_mat (a.col(), sum);
-
-		return sum_mat;
+		return vector2D<T> (a.col(), a_lin + b_lin);
 	}
 
 	else{
@@ -228,15 +223,8 @@ vector2D<T> operator-(const vector2D<T> & a , const vector2D<T> & b){
 
 		vector<T> a_lin = a.getLinearVector();
 		vector<T> b_lin = b.getLinearVector();
-		vector<T> diff;
 
-		for(int i = 0; i < a_lin.size(); i++){
-			diff[i] = a_lin [i] - b_lin[i];
-		}
-
-		vector2D<T> diff_mat (a.col(), diff);
-
-		return diff_mat;
+		return vector2D<T> (a.col(), a_lin - b_lin);
 	}
 
 	else{
@@ -248,34 +236,20 @@ vector2D<T> operator-(const vector2D<T> & a , const vector2D<T> & b){
 }
 
 template<typename T>
-vector2D<T> operator/(const vector2D<T> & a , T b){
+vector2D<T> operator/(const vector2D<T> & a , double b){
 
 	 vector<T> a_lin = a.getLinearVector();
-	 vector<T> a_lin_b(a_lin.size());
 
-	 for(int i = 0; i < a_lin.size(); i++){
-	 	a_lin_b[i] = a_lin[i]/b;
-	 }
-
-	 vector2D<T> c (a.col(), a_lin_b);
-
-	 return c;
+	 return vector2D<T> (a.col(), a_lin/b);
 
 }
 
 template<typename T>
-vector<T> operator*(const vector2D<T> & a, T b){
+vector2D<T> operator*(const vector2D<T> & a, double b){
 
 	vector<T> a_lin = a.getLinearVector();
-	vector<T> a_lin_b(a_lin.size());
 
-	for(int i = 0; i < a_lin.size(); i++){
-	 	a_lin_b[i] = a_lin[i]*b;
-	}
-
-	vector2D<T> c (a.col(), a_lin_b);
-
-	return c;
+	return vector2D<T> (a.col(), a_lin*b); 
 }
 
 
@@ -336,11 +310,9 @@ ostream & operator<<(ostream & os, const vector2D<T> & v2d){
 template<typename pointType>
 vector2D<double> outerproduct (pointType a, pointType b){
 	
-	int dim_a = a.size();
-
 	vector2D<double> c (a.size(), b.size());
 
-	for(int i = 0; i < dim_a; i++){
+	for(int i = 0; i < a.size(); i++){
 		c.setRow(i, b*a[i]);
 	}
 

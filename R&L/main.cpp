@@ -18,35 +18,29 @@ using namespace arma;
 ofstream output; 
 
 
-//Needed to see at which time step the body reaches the x-axis again with 0 velocity in x direction
+//Needed to see at which time step the body reaches the x-axis again in x direction
 class Check{
 
 public:
 	//constructor
-	Check(double y, double vx): m_y_old(y), m_vx_old(vx){}
+	Check(double y, double vy): m_y_old(y), m_vy_in(vy){}
 
 	//controls if the y variable in the state vector changes sign
 	bool control(const vector<double> & y){
 
 		//checks when y=0
-		bool c = m_y_old*y[1] >= 0;
+		bool y_check = m_y_old*y[1] >= 0;
 		m_y_old = y[1];
 
-		//checks when vx=0
-		bool d = m_vx_old*y[2] >= 0;
-		m_vx_old = y[2];
+		bool vy_check = y[3] * m_vy_in < 0;
 
-		//checks if both conditions are satisfied
-		bool a = c && d;
-
-		return a;
+		return y_check || vy_check;
 	}
 
 protected:
 	double m_y_old;
-	double m_vx_old;
+	double m_vy_in;
 };
-
 
 ////////////////////////////NEEDED FOR ODEINT INGEGRATION////////////////////////////////////
 
@@ -82,194 +76,166 @@ protected:
 
 int main(){
 
+
 //OBJECTS AND INITIAL CONDITIONS
-//define the gravitational parameter using the units of the CR3BP
-double mu = 0.01227741;
-//this object contains the differental equations
-ThreeBody tb (mu);
-//matrix that contains the initial conditions (x,y,vx,vy)
-vector<vector<double>> xin({{0.3,0.,0.,1.8},{0.5,0.,0.,1.2},{0.7,0.,0.,0.53},{0.8,0.,0.,0.35,3.0777}});
-//matrix that contains the different initial conditions (x,y,vx,vy,C) that will lead to different orbits
-vector<vector<double>> xinC({{0.3,0.,0.,1.8,2.968},{0.5,0.,0.,1.2,2.7066},{0.7,0.,0.,0.53,3.0572},{0.8,0.,0.,0.35,3.0777}});
-vector<double> Cin = {2.968,2.7066,3.0572,3.0777};
-//object Stm (will give us the differential equations for the whole system (state vector and state transition matrix))
-Stm Phi (mu);
-//defining the sensitivity matrix initial conditions (identity 4x4 matrix)
-vector2D<double> phi0 = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
 
+double mu = 0.01227741;	//define the gravitational parameter using the units of the CR3BP
+ThreeBody tb (mu);	//this object contains the differental equations
+Stm Phi (mu);	//object Stm (will give us the differential equations for the whole system (state vector and state transition matrix))
 
-//EXTREMES OF INTEGRATION
-double t0 = 0.;
+/*
+vector<vector<double>> xin({{0.3,0.,0.,1.8},{0.5,0.,0.,1.2},{0.7,0.,0.,0.53},{0.8,0.,0.,0.35,3.0777}});	//matrix that contains the different initial conditions (x,y,vx,vy) that will lead to different orbits
+vector<vector<double>> xinC({{0.3,0.,0.,1.8,2.968},{0.5,0.,0.,1.2,2.7066},{0.7,0.,0.,0.53,3.0572},{0.8,0.,0.,0.35,3.0777}});	//initial conditions with jacobi constant
+vector<double> Cin = {2.968,2.7066,3.0572,3.0777};	//jacobi constants*/
+vector2D<double> phi0 = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};	//defining the sensitivity matrix initial conditions (identity 4x4 matrix)
+vector<double> x0 = {0.7,0.,0.,0.5};
+vector2D<double> I = {{1,0},{0,1}};
+
+vector2D<double> x;	//here the result of the integration is stored
+double t0 = 0.;	//starting time of integration
 double tf = 20.;
-double h = 0.01;
-double H = 0.0001;
+double h = 0.001;	//step of integration
 
-//AUXILIARY VARIABLES USED IN THE WHILE CYCLE
-vector2D<double> res;	//matrix of the result of integration
-vector2D<double> phi;	//stm
-vector2D<double> res_jac;	//matrix fo rjacobi constant
-vector<double> accT;	//acceleration vector
+//objects needed in the cycle
+vector<double> xTphiT;	//stm after one period
 vector<double> K;	//constraint vector
-vector<double> C;	//jacoi constant vector
-vector<double> xT;	//define the state vector after one period
-double C0;
-double CT;
-double j;
-double k;
-double T;
-double d;
-double treshold = pow(10,-6);	//treshold under which the diagonal values of the jacobian matrix are set to 0
+double T;	//period
+double vyT;	//velocity in y after one period
+double d;	//constraint violation
+double threshold = pow(10,-4);	//threshold under which the diagonal values of the jacobian matrix are set to 0
 double tolerance = pow(10,-11); //tolerance that regulates the iteration of the correction
 								//the corrector algorithm goes on until the difference between final and initial condition is <tolerance
 
 //ERRORS AND ADAPTIVE STEP FOR THE ODEINT INTEGRATOR
 double rel_err = pow(10,-15);	//10 digits
-double abs_err = pow(10,-10);
+double abs_err = pow(10,-20);
 //initializing the integration stepper of odeint
 auto thestepper = make_controlled<runge_kutta_fehlberg78<vector<double>>> (rel_err, abs_err);
+Check c (x0[1], x0[3]);	//the object check is needed to check if the body reaches the x-axis with vx=0
 
-int i = 1;
-
-
-//this for cycle repeats the process for every initial condition vector proposed
-for(auto x0 : xin){
-
-	cout<<"CALCOLO DEL VETTORE "+to_string(i)<<"\t"<<flush;
-
-	//initializing state to the vector of initial conditions
+/////////////INTEGRATION OF THE ORBIT WITH THE UNMODIFIED INITIAL CONDITIONS////////////
 	vector<double> state = x0;
 	//creating a matrix
 	vector2D<double> initial;
-
-	C0=tb.jacobi(x0);
 	//open the output file and start the interation with the adaptive step
-	output.open("corrections/initial"+to_string(i)+".dat");
+	output.open("orbits/initial.dat");
 	observer obs(output, initial);	//the results are written directly in the file
 	integrate_adaptive( thestepper , tb , state , t0 , tf , h , obs );
 	output.close();
 
-	//the object check is the one that controls at which tikìme t the body reaches the x-axis again woth vx=0
-	//it is mandatory to have it if we want to use the overloaded RK4 integrator that stops when the body reaches the x-axis
-	Check c (x0[1], x0[2]);
-
-	H = 1./10000;
-	double v_old = 0.;
-	bool flag = true;
-
-
-
-	do{
-		cout<<"*"<<flush;
-		//initializing x0phi0 to the vector x0
+//////////////CYCLE THAT CORRECTS THE INITIAL CONDITIONS ////////////////////////
+int cont = 0;
+do{
+		cout<<"*"<<cont<<endl;
+		//we want to integrate the eqations of motion of the problem using one vector (for both x and phi)
 		vector<double> x0phi0(x0);
-		//add as vector the state transition matrix phi0 after the x0 vector, so that we get a unique vector that contains both the state vector and the stm
-		x0phi0.insert(x0phi0.end(), phi0.getLinearVector().begin(), phi0.getLinearVector().end());
+		x0phi0.insert(x0phi0.end(), phi0.getLinearVector().begin(), phi0.getLinearVector().end());	//now x0phi0 contains all the initial conditions
 
-		//using the overloaded RK4 that stops the integration when we reach x-axis again, with vx=0
-		double tol = pow(10,-20);
-		res = RK4(t0, c, H, Phi, x0phi0);
-		res.eraseRow(res.row()-1);	//we erase the last row of the res vector (it takes track of the time, so we get only the state vector plus phi)
+		double C0 = tb.jacobi(x0);	//initial jacobi constant
 
-		//the while has a conrol over the velocity vx, until it stays over the tolerance, the cycle continues
-/*			//the integration step is reduced in order to get a better precision
-			H = H / 10;
-			//we store the initial time of integration (that is in the element res(last row, first column))
-			double t_start = res.element(res.row()-1, 0);
-			//we store the state vector at final t obtained by the rk integration into x0phi0
-			vector<double> x0phi0 = res.getRow(res.row()-1);
-			x0phi0.erase(x0phi0.begin());
-			res = RK4(t_start, c, H, Phi, x0phi0);
-			while( res.row() == 1 ){
+		c = Check(x0[1], x0[3]);
+		x = RK4(t0, c, h, Phi, x0phi0);
+
+		output.open("orbits/rk4.dat");
+		output<<x<<endl;
+		output.close();
+
+
+		cout<<"period: "<<x[x.row()-1][0]<<endl;
+
+		////////////////////////CYCLE TO INTEGRATE WITH A SMALLER STEP AROUND THE Y=0 POINT/////////////
+		//When we are near the end of the period, to achieve better precision, we reduce the integration 
+		//step, in order to get better "after one period" values and therefore a more precise correction
+		double H = h/100;	//step for the integration at the end of the period
+		x.eraseRow(x.row()-1);	//this is the row where we already crossed the y axis again (so we must erase it)
+		double tol = pow(10,-20);	//tolerance with which we accept the y value
+
+		//the cycle keeps on going until y(T) > tol
+		while( abs(x.element(x.row()-1, 2)) > tol ){
+
+			H = H / 10;	//we reduce the integration step
+			double t_start = x.element(x.row()-1, 0);	//store the initial time of integration
+			vector<double> x0phi0_new = x.getRow(x.row()-1);	//store the vector of initial conditions
+			x0phi0_new.erase(x0phi0_new.begin());	//we erase the time element (so that we have a vector (x,y,vx,vy))
+
+			x = RK4(t_start, c, H, Phi, x0phi0_new);	//integrate with the new step and initial conditions
+														//stops again when crossing the x-axis
+			while( x.row() == 1 ){	//this cycle here prevents the fact that the rRK4 stops after one row
 				H = H / 10;
-				res = RK4(t_start, c, H, Phi, x0phi0);
+				x = RK4(t_start, c, H, Phi, x0phi0_new);
 			}
-			res.eraseRow(res.row()-1);
-		}
-*/
-		///////////////////////PERIOD PARAMETERS/////////////////////////////
-		j = res.row();	//reads how many iterations we have done to arrive at T
-		T = res[j-1][0];	//stores the value of the period
-		H = T / 10000;
-		cout<<" T= "<<T<<endl;
-		//store in xTphiT the values of the vector and stm after a period
-		vector<double> xTphiT(res[j-1]);
-		//store the value of the state vector at the period
-		vector<double> xT(xTphiT.begin()+1, xTphiT.begin()+5);
-		cout<<"state vector a metà periodo"<<xT<<endl;
-		//store the value of the phi matrix at one period
-		vector2D<double> phiT(4, vector<double>(xTphiT.begin()+5, xTphiT.end()));
-		double vT = xT[3];	//velocity in y after one period
-		CT = tb.jacobi(xT);
 
-		flag = v_old*xT[2]>=0;
-		v_old = xT[2];
+//			cout<<"y(T)= "<<x.element(x.row()-1,2)<<endl;
+			x.eraseRow(x.row()-1);	//we erase the last row and restart the procedure to reduce the step H again
+//			cout<<"Y(T)= "<<x.element(x.row()-1,2)<<endl;
+		}
+
+
+		//STM AND STATE VECTOR AFTER ONE PERIOD
+		T = x[x.row()-1][0];	//period
+		xTphiT = x[x.row()-1];	//state vector and stm after one period (contains also the time)
+		vector<double> xT(xTphiT.begin()+1, xTphiT.begin()+5); //sv after one period (no time included)
+		vector2D<double> phiT(4, vector<double>(xTphiT.begin()+5, xTphiT.end())); //state vector after one period
+		vyT = xT[3];	//velocity in y direction after one period
+		double CT = tb.jacobi(xT);
 
 		///////////////////////////////CORRECTION ROUTINE///////////////////////////////////////
-		//constraint vector K
-		K = xT-x0;
-		//create the jacobian matrix
-		vector2D<double> J = jacobian2DHalo(phiT,vT, xT);
-		//the row of dC/dx must be added
-		J.pushBackRow(Phi.dC_dx(x0));
+
+		K = xT-x0;	//definition of the constraint vector
+		vector<double> xdotT = {xT[2],tb.acceleration(xT)[1]};	//vector that contains (vx,ay)//used to compute the jacobian matrix
+		vector2D<double> J = jacobian2DHalo(phiT,vyT, xdotT)-I;	//jacobian matrix
+		J.pushBackRow(Phi.dC_dx(x0));	//we add the row with the jacobi constant
+
+		//CONVERSION IN ARMADILLO OBJECT
 		//now it must be converted in an armadillo matrix:
-		//first we get a vector out of the matrix (so we use the armadillo constructor that takes a std:vector)
-		vector<double> j = J.getLinearVector();
-		//this is the jacobian matrix as an armadillo object
-		mat jac ( & j.front(), J.row(), J.col());
+		vector<double> j = J.getLinearVector();	//first we get a vector out of the matrix (so we use the armadillo constructor that takes a std:vector)
+		mat jac ( & j.front(), J.row(), J.col());	//this is the jacobian matrix as an armadillo object
+
+		//SINGULAR VALUE DECOMPOSITION
 		//now we use the svd on jac, and set to 0 all the diagonal element below the treshold
 		//and get as a result the matrix to be applied to the constraint vector to get the correction
-		mat svd_jac = pca(j, treshold);
-		//convert constraint vector K into armadillo vector
-		vec k (K);
-		//apply the matrix to k to get the correction vector
-		vec delta = - svd_jac*k;
-		//convert the correction vector from armadillo vector to std: vector
-		vector<double> Delta = conv_to<vector<double>>::from(delta);
+		mat svd_jac = pca(jac, threshold);
+		vec k (K);	//convert constraint vector K into armadillo vector
+		k.shed_row(1);	//from the constraint vector K we need to delete 
+		k.shed_row(1);	//the lines containing y and vx
+		k.insert_rows(k.n_elem,1);	//insert in the constraint vector K the jacobi constant
+		k(k.n_elem-1) = CT-C0;
 
 
-		//finally we get the new initial conditions vector
-		x0 = x0 + Delta;
+		vec delta = -svd_jac*k;	//apply the matrix to k to get the correction vector
+		vector<double> Delta = conv_to<vector<double>>::from(delta);	//convert the correction vector from armadillo vector to std: vector
+
+		//applying the correction
+		x0[0] += Delta[0];
+		x0[3] += Delta[1];
 
 
-		//tolerance to the constraint violation
+		//defining the tolerance to the constraint violation
 		vector<double> pos0 = {x0[0],x0[1]};
 		vector<double> posT = {xT[0],xT[1]};
 		vector<double> vel0 = {x0[2],x0[3]};
 		vector<double> velT = {xT[2],xT[3]};
-		vector<double> deltapos = posT-pos0;
-		vector<double> deltavel = velT-vel0;
 
-		d = norm(deltapos)/norm(pos0) + norm(deltavel)/norm(vel0) + (CT-C0)/C0;
+		cout<<"C0: "<<C0<<endl;
+		cout<<"CT: "<<CT<<endl;
+		d = norm(posT-pos0)/norm(pos0) + norm(velT-vel0)/norm(vel0) + abs((CT-C0)/C0);
 
+		cout<<"d = "<<d<<endl;
+		cout<<"Delta = "<<Delta<<endl;
+		cout<<"XT= "<<xT<<endl;
+		cout<<"x0= "<<x0<<endl;
 
+		cont++;
+}while(abs(d) > tolerance && cont < 50);	//the condition to stop the routine is to have a sufficiently small constrint vector K;
+cout << "stop after " << cont << " iterations" << endl;
 
-	}while(abs(d) > tolerance);	//the do-while stops when we have that the constraint violation is less than a tolerance
-
-	cout<<endl;
-
-	output.open("period_correction.dat", fstream::app);
-	output << "VECTOR " << i << "\n";
-	output << "period:\t" << setprecision(15)<<T << "\n";
-	output << "corrected initial conditions:"<< setprecision(15)<<x0 << "\n\n";
+	//print the corrected vector for 6 periods in the file orbit.dat
+	vector2D<double> orbit;
+	output.open("orbits/orbit.dat");
+	observer obs2 (output, orbit);
+	integrate_adaptive( thestepper , tb , x0 , t0 , 9*T , h , obs2 );
 	output.close();
 
-
-	//print the corrected orbit into a file using the new orbit
-
-	vector2D<double> correction;
-	output.open("corrections/correction"+to_string(i)+".dat");
-	observer obs2 (output, correction);
-	integrate_adaptive( thestepper , tb , x0 , t0 , 6*T , h , obs2 );
-	output.close();
-
-	//state vector over one period
-	res_jac = RK4(t0, T, T/100000, tb, x0);
-	cout<<"state vector over one period: "<<"\n"<<res_jac<<endl;
-
-
-	i++;
-
-}
 
 
 	return 0;

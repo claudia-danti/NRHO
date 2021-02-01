@@ -11,7 +11,6 @@
 						//in order to fill all the [i][j] elements of the matrix.
 
 using namespace std;
-
 //the object function is a vectorial function that must have the evaluate method (evaluating the function in a certain point x)
 template <typename function>																			//parameters: initial time t0, final time tfin
 vector2D<double> RK4(double t0, double tfin, double h, function & f, vector<double> y0){	//initial condition vector y0, function f, step h
@@ -102,7 +101,7 @@ vector2D<double> RK4(double t0, control &c, double h, function & f, vector<doubl
 	y0(tn), y1(tn), ..., yd(tn)
 
 	*/
-
+//output.open("debug.dat");
 	//vector that contains all the times 
 	vector<double> t;
 	t.push_back(t0);
@@ -127,6 +126,8 @@ vector2D<double> RK4(double t0, control &c, double h, function & f, vector<doubl
 		//values of the matrix y (in particular the [j] component of y authomatically corresponds to the one of k)
 			y.pushBackRow(y[j-1] + (1./6.)*(k1 + 2.*k2 + 2.*k3 + k4) );
 			t.push_back(t0 + j*h);
+
+			//output<<y[j]<<endl;
 				
 		}
 
